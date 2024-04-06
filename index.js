@@ -2,6 +2,7 @@ import express from "express";
 import mongoose, { mongo } from "mongoose";
 import cors from 'cors';
 import dotenv from 'dotenv'
+import path from 'path'
 
 import userRoutes from './routes/users.js'
 import tipsAdminRoutes from './routes/Tips.js'
@@ -11,7 +12,6 @@ import userProfileRoutes from './routes/userProfile.js'
 import recruiterProfileRoutes from './routes/recruiterProfile.js'
 import superadminRoutes from './routes/superadminRoutes.js'
 import { mailFunction } from "./controllers/mail.js";
-import path from 'path'
 
 const app = express()
 dotenv.config()
