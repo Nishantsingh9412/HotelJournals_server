@@ -37,8 +37,7 @@ app.post('/mail', mailFunction)
 //   res.send(' This is Hotel Journals ')
 // })
 
-// const PORT = 5000
-const PORT = "https://hoteljournals-server.onrender.com" || 5000
+const PORT = process.env.PORT || 5000
 const DATABASE_URL = process.env.DATABASE_URL
 
 mongoose.connect(DATABASE_URL, { useNewUrlParser: true, useUnifiedTopology: true })
