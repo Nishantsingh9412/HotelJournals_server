@@ -15,7 +15,7 @@ import path from 'path'
 
 const app = express()
 dotenv.config()
-const port = 5000
+// const port = 5000
 
 app.use(express.json({ limit: '30mb', extended: true }));
 app.use(express.urlencoded({ limit: '30mb', extended: 'true' }))
@@ -37,7 +37,8 @@ app.post('/mail', mailFunction)
 //   res.send(' This is Hotel Journals ')
 // })
 
-const PORT = 5000
+// const PORT = 5000
+const PORT = "https://hoteljournals-server.onrender.com" || 5000
 const DATABASE_URL = process.env.DATABASE_URL
 
 mongoose.connect(DATABASE_URL, { useNewUrlParser: true, useUnifiedTopology: true })
