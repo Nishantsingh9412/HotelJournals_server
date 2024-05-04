@@ -13,7 +13,10 @@ import {
     rejectJobs,
     getAllJobsForSuperAdmin,
     getAllJobsRecruiter,
-    getAllJobsLazyLoading
+    getAllJobsLazyLoading,
+    getSimilarJobs,
+    checkAppliedSingle,
+    checkAppliedByUser
     // hiredCandParticularJob,
     // notOfferedCandPartJob,
     // offeredCandParticularJob,
@@ -21,6 +24,15 @@ import {
 } from '../controllers/jobs.js';
 
 const router = express.Router();
+
+// get all applied jobs for a particular user
+router.get('/checkapplied-by-user/:id', checkAppliedByUser)
+
+// check applicant applied or not 
+router.get('/checkapplied/:jobid/:userid', checkAppliedSingle)
+
+// get similar jobs 
+router.get('/similarjobs/:id', getSimilarJobs)
 
 // get Alljobs Verified Lazy Loading Main Page
 router.get('/lazy-loading-jobs', getAllJobsLazyLoading)

@@ -99,7 +99,77 @@ import User from "../models/auth.js";
 //     }
 // }
 
+export const checkAppliedByUser = async (req, res) => {
+    const {id:_id} = req.params;
+    if (!mongoose.Types.ObjectId.isValid(_id)) {
+        return res.status(400).json({ success: false, message: 'Invalid ID' })
+    }
+    try{
+        const allAppliedJobs = await Jobs.find({ "applicants.user": _id }).populate('recruiter_info');
+        if(allAppliedJobs.length === 0){
+            return res.status(400).json({ success: false, message: 'No Job Found' });
+        }
+        res.status(200).json({ success: true, message: 'Applied Jobs Fetched Successfully', result: allAppliedJobs });
+    }catch(err){
+        console.log("Error from checkAppliedByUser Controller ", err.message)
+        res.status(500).json({ success: false, message: err.message });
+    }
+}
 
+export const checkAppliedSingle = async (req, res) => {
+    const { jobid, userid } = req.params;
+    const job = await Jobs.findById(jobid);
+    if (!job) {
+        return res.status(400).json({ success: false, message: 'No Job Found' });
+    }
+    const userAppliedOrNot = await Jobs.findOne({ _id: jobid, "applicants.user": userid });
+    if (userAppliedOrNot) {
+        return res.status(200).json({
+            success: true,
+            message: 'User Applied for this Job',
+            applied: true,
+        });
+    } else {
+        return res.status(200).json({
+            success: true,
+            message: 'User Not Applied for this Job',
+            applied: false,
+        });
+    }
+}
+
+export const getSimilarJobs = async (req, res) => {
+    const { id: _id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(_id)) {
+        return res.status(400).json({ success: false, message: 'Invalid ID' })
+    }
+    try {
+        const job = await Jobs.findById(_id).populate('recruiter_info')
+        // console.log(job);
+        // Find similar jobs based on category and skills
+        let similarJobs = await Jobs.find({
+            _id: { $ne: _id },
+            isVerifiedJob: true,
+            jobTitle: job.jobTitle,
+            // jobCategory: job.jobCategory,
+            mandatorySkills: { $in: job.mandatorySkills }
+        }).populate('recruiter_info').limit(5);
+
+        if (similarJobs.length < 5) {
+            const additionalJobs = await Jobs.aggregate([{ $sample: { size: 5 - similarJobs.length } }]);
+            const populatedAdditionalJobs = await Jobs.populate(additionalJobs, { path: 'recruiter_info' });
+            similarJobs = similarJobs.concat(populatedAdditionalJobs);
+        }
+
+        console.log("this is similar jobs : \n");
+        console.log(similarJobs);
+
+        // res.json(similarJobs);
+        res.status(200).json({ success: true, message: 'Similar Jobs Fetched Successfully', result: similarJobs })
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Internal Server Error' })
+    }
+}
 
 // All Jobs Verified Lazy Loading 
 export const getAllJobsLazyLoading = async (req, res) => {
@@ -108,8 +178,8 @@ export const getAllJobsLazyLoading = async (req, res) => {
         const limit = parseInt(req.query.limit) || 10;
         const startIndex = (page - 1) * limit;
 
-        const totalJobs = await Jobs.countDocuments({isVerifiedJob:true});
-        const jobs = await Jobs.find({isVerifiedJob:true}).populate('recruiter_info').skip(startIndex).limit(limit);
+        const totalJobs = await Jobs.countDocuments({ isVerifiedJob: true });
+        const jobs = await Jobs.find({ isVerifiedJob: true }).populate('recruiter_info').skip(startIndex).limit(limit);
 
         const results = {
             totalJobs,
@@ -133,7 +203,6 @@ export const getAllJobsLazyLoading = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 }
-
 // Verify Job by SuperAdmin 
 export const VerifyJobs = async (req, res) => {
     const { id: jobId } = req.params;
@@ -188,66 +257,90 @@ export const rejectJobs = async (req, res) => {
 
 }
 // Filter Section jobs
+
 export const filterJobs = async (req, res) => {
     try {
         const {
-            yearsOfExperience,
-            salaryMin,
-            salaryMax,
-            salarySpecification,
-            jobDesignation,
-            locationType,
-            citiesFilter,
+            DatePosted,
+            ContractTypes,
+            JobType,
         } = req.query;
 
-        console.log("yearsOfExperience", yearsOfExperience);
-        console.log("salaryMin", salaryMin);
-        console.log("salaryMax", salaryMax);
-        console.log("salarySpecification", salarySpecification);
-        console.log("jobDesignation", jobDesignation);
-        console.log("locationType", locationType);
-        console.log("citiesFilter", citiesFilter);
-
+        console.log("DatePosted", DatePosted);
+        console.log("ContractTypes", ContractTypes);
+        console.log("JobType", JobType);
 
         // Build the filter object
         const filter = {};
 
-        if (yearsOfExperience) {
-            filter.workExperienceMax = { $lte: yearsOfExperience };
+        if (DatePosted && DatePosted !== "All" && DatePosted !== "24") {
+            const daysAgo = new Date();
+            daysAgo.setDate(daysAgo.getDate() - Number(DatePosted));
+            filter.created_at = { $gte: daysAgo };
         }
 
-        if (salaryMin) {
-            filter.salaryStart = { $gte: salaryMin };
+        if (DatePosted === "24") {
+            const hoursAgo = new Date();
+            console.log("hoursAgo : ", hoursAgo);
+            hoursAgo.setHours(hoursAgo.getHours() - 24);
+            console.log("hoursAgo GetHours : ", hoursAgo.getHours() - 24);
+            filter.created_at = { $gte: hoursAgo };
         }
 
-        if (salaryMax) {
-            filter.salaryEnd = { $lte: salaryMax };
+        if (DatePosted === "10") {
+            const minutesAgo = new Date();
+            minutesAgo.setMinutes(minutesAgo.getMinutes() - 10);
+            filter.created_at = { $gte: minutesAgo };
         }
 
-        if (salarySpecification) {
-            filter.salarySpecification = salarySpecification;
+        if (DatePosted === "All") {
+            filter.created_at = { $gte: new Date(0) };
         }
 
-        if (jobDesignation) {
-            filter.jobTitle = jobDesignation;
+        if (ContractTypes) {
+            filter.jobCategory = { $in: ContractTypes.split(',') };
         }
 
-        if (locationType) {
-            filter.jobType = locationType;
+        if (JobType) {
+            filter.jobType = { $in: JobType.split(',') };
         }
-
-        if (citiesFilter) {
-            filter.jobLocation = { $in: citiesFilter };
-        }
-
         // Find the jobs that match the filter criteria
-        const jobsFinded = await Jobs.find(filter);
+        const jobsFinded = await Jobs.find({ ...filter, isVerifiedJob: true }).populate('recruiter_info');
 
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const startIndex = (page - 1) * limit;
+
+        const totalJobs = jobsFinded.length;
+        const jobs = jobsFinded.slice(startIndex, startIndex + limit);
+
+        const results = {
+            totalJobs,
+            pageCount: Math.ceil(totalJobs / limit),
+            paginatedData: jobs,
+        };
+
+        if (page < results.pageCount) {
+            results.next = {
+                page: page + 1,
+            };
+        }
+        if (page > 1) {
+            results.prev = {
+                page: page - 1,
+            };
+        }
         // Send the filtered jobs as the response
-        res.status(200).json({ success: true, message: 'Jobs Filtered Successfully', result: jobsFinded });
-        // res.json(jobs);
+        res.status(200).json({
+            success: true,
+            message: 'Jobs Filtered Successfully',
+            result: results
+        });
     } catch (err) {
-        res.status(500).json({ success: false, message: err.message });
+        res.status(500).json({
+            success: false,
+            message: err.message
+        });
     }
 }
 
@@ -321,7 +414,7 @@ export const postJobs = async (req, res) => {
             job_location, mandatory_skills, optional_skills,
             joining_date, is_immediate, work_experience_min,
             work_experience_max, salary_specification, salary_start,
-            salary_end, no_of_openings, extra_benifits,
+            salary_end, no_of_openings,
             job_description, isExternal, job_link, created_by, recruiter_info
         } = req.body;
 
@@ -366,7 +459,6 @@ export const postJobs = async (req, res) => {
                 salaryStart: salary_start,
                 salaryEnd: salary_end,
                 no_of_openings,
-                extraBenifits: extra_benifits,
                 jobDescription: job_description,
                 isExternal,
                 jobLink: job_link,
@@ -411,7 +503,6 @@ export const getAllJobs = async (req, res) => {
                 salaryStart: singleJob.salaryStart,
                 salaryEnd: singleJob.salaryEnd,
                 no_of_openings: singleJob.no_of_openings,
-                extraBenifits: singleJob.extraBenifits,
                 jobDescription: singleJob.jobDescription,
                 isExternal: singleJob.isExternal,
                 jobLink: singleJob.jobLink,
@@ -464,7 +555,6 @@ export const getAllJobsForSuperAdmin = async (req, res) => {
                 salaryStart: singleJob.salaryStart,
                 salaryEnd: singleJob.salaryEnd,
                 no_of_openings: singleJob.no_of_openings,
-                extraBenifits: singleJob.extraBenifits,
                 jobDescription: singleJob.jobDescription,
                 isExternal: singleJob.isExternal,
                 isVerifiedJob: singleJob.isVerifiedJob,
@@ -514,7 +604,7 @@ export const editJob = async (req, res) => {
         job_location, mandatory_skills, optional_skills,
         joining_date, is_immediate, work_experience_min,
         work_experience_max, salary_specification, salary_start,
-        salary_end, no_of_openings, extra_benifits,
+        salary_end, no_of_openings,
         job_description, isExternal, job_link
     } = req.body;
 
@@ -536,7 +626,6 @@ export const editJob = async (req, res) => {
                 'salaryStart': salary_start,
                 'salaryEnd': salary_end,
                 'no_of_openings': no_of_openings,
-                'extraBenifits': extra_benifits,
                 'jobDescription': job_description,
                 'isExternal': isExternal,
                 'jobLink': job_link

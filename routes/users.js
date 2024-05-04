@@ -1,6 +1,6 @@
 import express from "express";
 
-import { signup, login } from "../controllers/auth.js";
+import { signup, login, forgetPassword, resetPasswordToken } from "../controllers/auth.js";
 import {
     getProfile,
     getProfileById,
@@ -18,6 +18,11 @@ const router = express.Router();
 
 router.post('/signup', signup)
 router.post('/login', login)
+
+router.post('/forgotpassword', forgetPassword)
+
+router.post('/reset-password/:token', resetPasswordToken)
+
 
 router.get('/profile', getProfile)
 router.get('/profile/:id', getProfileById)

@@ -15,7 +15,6 @@ const jobsSchema = new Schema({
     salaryStart: { type: Number, required: true },
     salaryEnd: { type: Number, required: true },
     no_of_openings: { type: Number, required: true },
-    extraBenifits: { type: [String], required: false },
     jobDescription: { type: String, required: true },
     isExternal: { type: Boolean, required: true },
     isVerifiedJob: { type: Boolean, required: false, default: false },

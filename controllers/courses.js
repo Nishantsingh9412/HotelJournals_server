@@ -2,6 +2,58 @@ import Courses from "../models/courses.js";
 import mongoose from "mongoose";
 import user from "../models/profiles/user.js";
 
+
+export const educatorCourses = async (req, res) => {
+    const {id:_id} = req.params;
+    if(!mongoose.Types.ObjectId.isValid(_id)){
+        return res.status(400).json({success:false,message:'Invalid Course Id Provided'});
+    }
+    try{
+        const courses = await Courses.find({created_by:_id});
+        if(courses){
+            return res.status(200).json({success:true,message:'Courses Fetched',result:courses});
+        }else{
+            return res.status(400).json({success:false,message:'No Courses Found'});
+        }
+    }catch(err){
+        console.log("Error from educatorCourses Controller",err.message);
+    }
+}
+
+
+export const similarCourses = async (req, res) => {
+    const { id: _id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(_id)) {
+        return res.status(400).json({ success: false, message: 'Invalid Course Id Provided' });
+    }
+    try {
+        const coursefindedByCategory = await Courses.findById(_id).select('course_category');
+        const course_category = coursefindedByCategory.course_category;
+        const similarCourses = await Courses.find({
+            course_category: course_category,
+            _id: { $nin: _id }
+        }).limit(3);
+
+        if (similarCourses) {
+            return res.status(200).json({
+                success: true,
+                message: 'Similar Courses Fetched',
+                result: similarCourses
+            });
+        } else {
+            return res.status(400).json({
+                success: false,
+                message: 'No Similar Courses Found'
+            });
+        }
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: `Something went wrong from server ${error.message}`
+        });
+    }
+}
+
 export const paginatedCourses = async (req, res) => {
     const allCourses = await Courses.find({});
     const page = parseInt(req.query.page);
@@ -19,15 +71,14 @@ export const paginatedCourses = async (req, res) => {
         }
     }
 
-    if(startIndex > 0){
+    if (startIndex > 0) {
         results.prev = {
-            page:page - 1,
+            page: page - 1,
         }
     }
 
     results.pageinatedData = allCourses.slice(startIndex, lastIndex);
-
-    res.status(200).json({ success: true, message: `Paginated-courses` , result:results})
+    res.status(200).json({ success: true, message: `Paginated-courses`, result: results })
 }
 
 export const AllCompaniesName = async (req, res) => {
@@ -41,6 +92,11 @@ export const AllCompaniesName = async (req, res) => {
 
 export const AllCourseFilters = async (req, res) => {
     try {
+        const page = parseInt(req.query.page);
+        const limit = parseInt(req.query.limit);
+        const startIndex = (page - 1) * limit;
+        const lastIndex = page * limit;
+        const results = {};
         const {
             courseTypesFilter,
             courseLangFilter,
@@ -63,6 +119,7 @@ export const AllCourseFilters = async (req, res) => {
         const selectedLocation = Object.keys(location).filter(locationType => location[locationType]);
         const selectedCourseValue = Object.keys(courseValue).filter(courseValues => courseValue[courseValues]);
         console.log("This is the selectedCourseValue", selectedCourseValue)
+        console.log("This is sleected course Type", selectedCourseTypes);
         console.log("This is the Selected Location")
         console.log(selectedLocation)
 
@@ -71,22 +128,29 @@ export const AllCourseFilters = async (req, res) => {
 
         // Bachelors , masters , diploma , professional .....  
 
+        // if (selectedCourseTypes.length > 0) {
+        //     filter.course_type = { $in: selectedCourseTypes};
+        // }
+
         if (selectedCourseTypes.length > 0) {
-            filter.course_type = { $in: selectedCourseTypes };
+            filter.course_type = {
+                $in: selectedCourseTypes.map(type => new RegExp(type, 'i'))
+                // i means case insensitive 
+            };
         }
 
         //  English , Spanish , French , German .....
         if (selectedCourseLanguages.length > 0) {
-            if (selectedCourseLanguages.includes('Other')) {
+            if (selectedCourseLanguages.includes('Otros')) {
                 filter.languages = {
                     $nin: [
-                        'English',
-                        'Spanish',
-                        'French',
-                        'German',
-                        'Italian',
-                        'Portuguese',
-                        'Catalan'
+                        /Inglés/i,              //   /i for case-senstivity
+                        /Español/i,
+                        /Francés/i,
+                        /Catalán/i,
+                        /Italiano/i,
+                        /Portugués/i,
+                        /Alemán/i,
                     ]
                 };
             } else {
@@ -108,8 +172,6 @@ export const AllCourseFilters = async (req, res) => {
             }
         }
 
-
-
         // Free , Paid
         // if(selectedCourseValue.isFree){
         //     filter.isFree = true;
@@ -119,17 +181,35 @@ export const AllCourseFilters = async (req, res) => {
         //     filter.isFree = false;
         // }
 
-        if (courseValue.isFree) {
+        if (courseValue.Gratis) {
             filter.isFree = true;
         }
 
-        if (courseValue.isPaid) {
+        if (courseValue.Pago) {
             filter.isFree = false;
         }
 
         // Use the filter object to filter the courses in the database
         const filteredCourses = await Courses.find(filter);
-        res.status(200).json({ success: true, message: 'Filtered Courses', result: filteredCourses });
+        results.totalCourse = filteredCourses.length;
+        results.pageCount = Math.ceil(filteredCourses.length / limit);
+
+        if (lastIndex < filteredCourses.length) {
+            results.next = {
+                page: page + 1,
+            }
+        }
+
+        if (startIndex > 0) {
+            results.prev = {
+                page: page - 1,
+            }
+        }
+
+        
+
+        results.pageinatedData = filteredCourses.slice(startIndex, lastIndex);
+        res.status(200).json({ success: true, message: 'Filtered Courses', result: results });
     } catch (error) {
         console.log("Error from AllCourseFilters Controller", error.message);
         res.status(500).json({ success: false, message: `Something went wrong from server ${error.message}` })
@@ -138,6 +218,13 @@ export const AllCourseFilters = async (req, res) => {
 
 export const courseSearch = async (req, res) => {
     try {
+        // pagination logic start here
+        const page = parseInt(req.query.page);
+        const limit = parseInt(req.query.limit);
+        const startIndex = (page - 1) * limit;
+        const lastIndex = page * limit;
+        const results = {};
+        // some part of pagination end here
         const { courseProvider, keyword } = req.query;
         let filter = {};
         if (courseProvider) {
@@ -147,7 +234,25 @@ export const courseSearch = async (req, res) => {
             filter.title = { $regex: keyword, $options: 'i' };
         }
         const filteredCourses = await Courses.find(filter);
-        res.status(200).json({ success: true, message: 'Filtered Courses', result: filteredCourses });
+        // pagination logic resumes here 
+        results.totalCourse = filteredCourses.length;
+        results.pageCount = Math.ceil(filteredCourses.length / limit);
+
+        if(lastIndex < filteredCourses.length){
+            results.next = {
+                page: page + 1,
+            }
+        }
+
+        if(startIndex > 0){
+            results.prev = {
+                page: page - 1,
+            }
+        }
+
+        results.pageinatedData = filteredCourses.slice(startIndex, lastIndex);
+        // pagination logic ends here
+        res.status(200).json({ success: true, message: 'Filtered Courses', result: results });
     } catch (error) {
         res.status(500).json({ success: false, message: `Something went wrong from server ${error.message}` })
     }

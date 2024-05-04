@@ -7,8 +7,8 @@ export const setUserCertification = async (req, res) => {
         issued_by,
         issue_month,
         issue_year,
-        expiration_month,
-        expiration_year,
+        // expiration_month,
+        // expiration_year,
         credential_id,
         credential_url,
         userId
@@ -22,8 +22,8 @@ export const setUserCertification = async (req, res) => {
             issued_by,
             issue_month,
             issue_year,
-            expiration_month,
-            expiration_year,
+            // expiration_month,
+            // expiration_year,
             credential_id,
             credential_url,
             userId
@@ -77,8 +77,8 @@ export const EditUserCertification = async (req, res) => {
         issued_by,
         issue_month,
         issue_year,
-        expiration_month,
-        expiration_year,
+        // expiration_month,
+        // expiration_year,
         credential_id,
         credential_url,
     } = req.body;
@@ -94,8 +94,8 @@ export const EditUserCertification = async (req, res) => {
                 'issued_by': issued_by,
                 'issue_month': issue_month,
                 'issue_year': issue_year,
-                'expiration_month': expiration_month,
-                'expiration_year': expiration_year,
+                // 'expiration_month': expiration_month,
+                // 'expiration_year': expiration_year,
                 'credential_id': credential_id,
                 'credential_url': credential_url,
             }

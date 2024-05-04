@@ -29,8 +29,6 @@ const CertificationSchema = new Schema({
     issued_by: { type: String, required: true },
     issue_month: { type: String, required: true },
     issue_year: { type: String, required: true },
-    expiration_month: { type: String, required: false },
-    expiration_year: { type: String, required: false },
     credential_id: { type: String, required: false },
     credential_url: { type: String, required: false },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

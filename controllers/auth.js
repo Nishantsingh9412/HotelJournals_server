@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken';
 
 import users from '../models/auth.js'
+import { mailFunctionByMailData } from './mail.js';
 
 export const signup = async (req, res) => {
     const { firstName, lastName, email, password,
@@ -56,3 +57,69 @@ export const login = async (req, res) => {
     }
 }
 
+
+
+
+
+export const forgetPassword = async (req, res) => {
+    const { mail } = req.body;
+    console.log("mail -------------------------------------------------------> ", mail);
+    try {
+        const existingUser = await users.findOne({ email: mail })
+        if (!existingUser) {
+            return res.status(404).json({ success: false, message: "User not found" })
+        }
+
+        const token = jwt.sign({ userId: existingUser._id }, process.env.JWT_SECRET, { expiresIn: '10m' })
+
+        const mailData = {
+            to: mail,
+            subject: "Reset Password",
+            text: "Reset Password",
+            html: `
+                <h1>Click on the link to reset your password</h1>
+                <a href="${process.env.CLIENT_URL}/reset-password/${token}">Reset Password</a>
+                <p>The link will expire in 10 minutes.</p>
+                <p>If you didn't request a password reset, please ignore this email.</p>`
+        }
+
+        mailFunctionByMailData(mailData).then((result) => {
+            if(result.success){
+                return res.status(200).json({ success: true, message: "Email sent successfully" })
+            } 
+        }).catch((err) => {
+            console.log('Error in forgetPassword', err);
+            return res.status(500).json({ success: false, message: "Internal Server Error" })
+        })
+    } catch (err) {
+        console.log("Error in forgetPassword", err);
+        return res.status(500).json({ success: false, message: "Something went wrong" })
+    }
+}
+
+export const resetPasswordToken = async (req, res) => {
+    const { token } = req.params;
+    const { newPassword } = req.body;
+    try {
+        const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+        if (!decodedToken) {
+            return res.status(401).json({ success: false, message: "Invalid or expired token" })
+        }
+
+        const existingUser = await users.findById({ _id: decodedToken.userId });
+        console.log('this is the existing user', existingUser)
+        if (!existingUser) {
+            return res.status(404).json({ success: false, message: "User not exists" })
+        }
+        // Hashing new password 
+        const hashedPassword = await bcrypt.hash(newPassword, 12);
+        existingUser.password = hashedPassword;
+        await existingUser.save();
+        // Send success response
+        res.status(200).send({ message: "Password updated" });
+
+    } catch (err) {
+        console.log("Error in resetPasswordToken", err);
+        return res.status(500).json({ success: false, message: "Something went wrong" })
+    }
+}
